@@ -163,6 +163,14 @@
       padding: 2px 0;
     }
 
+    .net-diag {
+      font-size: 11px;
+      text-align: center;
+      color: var(--text-muted);
+      line-height: 1.4;
+      padding: 2px 0;
+    }
+
     .players-card h3 {
       font-size: 11px;
       text-transform: uppercase;
@@ -395,6 +403,7 @@
       </div>
 
       <div id="status" class="status-badge">Initialisation du réseau WebRTC...</div>
+      <div id="net-diag" class="net-diag">Diagnostic réseau en attente...</div>
     </div>
 
     <div class="panel players-card">
@@ -476,35 +485,182 @@
   // ============================================================
   // CONFIGURATION ICE (STUN + TURN)
   // ------------------------------------------------------------
-  // ⚠️ IMPORTANT : Remplace TON_USERNAME_METERED et
-  //    TON_CREDENTIAL_METERED par tes identifiants Metered réels
-  //    (gratuits sur https://www.metered.ca/stun-turn)
-  // ------------------------------------------------------------
-  const ICE_SERVERS = [
-    // STUN — suffisant sur réseaux "ouverts" (même Wi-Fi, box classique)
+  // POURQUOI UN TURN : sur 4G/5G ou certaines box, les deux joueurs
+  // ne peuvent pas se joindre en direct. Le TURN fait le relais.
+  // L'hôte ET l'invité utilisent cette même configuration.
+  //
+  // OPTION RECOMMANDÉE (gratuit) : identifiants Metered
+  //   1. Créer un compte sur https://www.metered.ca/stun-turn
+  //   2. Dashboard > TURN Server : noter le nom de l'app
+  //      et créer une clé API
+  //   3. Renseigner les 2 lignes ci-dessous
+  // ============================================================
+  const METERED_APP = '';       // ex : 'monjeu'  (=> monjeu.metered.live)
+  const METERED_API_KEY = '';   // ex : 'abcdef123456...'
+
+  // OPTION MANUELLE : ton propre serveur TURN (coturn, etc.)
+  const CUSTOM_TURN = [
+    // { urls: 'turn:mon-serveur.com:3478', username: 'user', credential: 'pass' },
+  ];
+
+  const STUN_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:global.stun.twilio.com:3478' },
-
-    // TURN UDP — passe les NAT symétriques (4G/5G, certaines box)
-    {
-      urls: 'turn:standard.relay.metered.ca:80',
-      username: 'TON_USERNAME_METERED',
-      credential: 'TON_CREDENTIAL_METERED'
-    },
-    // TURN TCP sur port 443 — indispensable sur réseaux d'entreprise/hôtel
-    // (souvent seul le port HTTPS 443 est autorisé)
-    {
-      urls: 'turn:standard.relay.metered.ca:443',
-      username: 'TON_USERNAME_METERED',
-      credential: 'TON_CREDENTIAL_METERED'
-    },
-    {
-      urls: 'turns:standard.relay.metered.ca:443?transport=tcp',
-      username: 'TON_USERNAME_METERED',
-      credential: 'TON_CREDENTIAL_METERED'
-    }
+    { urls: 'stun:global.stun.twilio.com:3478' }
   ];
+
+  // Relais public de secours, utilisé UNIQUEMENT si aucun TURN
+  // n'est configuré ci-dessus. Service partagé : pas de garantie.
+  // Le diagnostic affiché sous le statut indique s'il fonctionne.
+  const FALLBACK_TURN = [
+    { urls: 'turn:openrelay.metered.ca:80',  username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+  ];
+
+  let iceServers = null;        // liste finale utilisée par PeerJS
+  let relayAvailable = null;    // null = inconnu, true/false après diagnostic
+  let diagStarted = false;
+  let routeType = '';           // 'direct' ou 'relais' une fois connecté
+
+  async function loadIceServers() {
+    if (iceServers) return iceServers;
+
+    let list = STUN_SERVERS.slice();
+    let hasOwnTurn = false;
+
+    if (METERED_APP && METERED_API_KEY) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 6000);
+        const url = 'https://' + encodeURIComponent(METERED_APP) +
+                    '.metered.live/api/v1/turn/credentials?apiKey=' + encodeURIComponent(METERED_API_KEY);
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const servers = await res.json();
+        if (Array.isArray(servers) && servers.length) {
+          list = list.concat(servers);
+          hasOwnTurn = true;
+        }
+      } catch (err) {
+        console.warn('Metered : récupération des identifiants impossible', err);
+      }
+    }
+
+    if (CUSTOM_TURN.length) {
+      list = list.concat(CUSTOM_TURN);
+      hasOwnTurn = true;
+    }
+
+    if (!hasOwnTurn) list = list.concat(FALLBACK_TURN);
+
+    iceServers = list;
+    return list;
+  }
+
+  // Test réel : demande des candidats ICE et regarde si un "relay" est obtenu
+  function testRelay(servers) {
+    return new Promise(resolve => {
+      const types = new Set();
+      const errors = [];
+      let done = false;
+      let pc = null;
+
+      const timer = setTimeout(() => finish(), 7000);
+
+      function finish() {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { if (pc) pc.close(); } catch (e) {}
+        resolve({ relay: types.has('relay'), srflx: types.has('srflx'), errors: errors });
+      }
+
+      try {
+        pc = new RTCPeerConnection({ iceServers: servers });
+      } catch (e) {
+        errors.push(e.message);
+        finish();
+        return;
+      }
+
+      pc.onicecandidate = e => {
+        if (!e.candidate) { finish(); return; }
+        const m = / typ (\w+)/.exec(e.candidate.candidate);
+        if (m) types.add(m[1]);
+      };
+      pc.onicecandidateerror = e => {
+        if (e && e.errorCode) errors.push(e.errorCode);
+      };
+
+      pc.createDataChannel('diag');
+      pc.createOffer()
+        .then(o => pc.setLocalDescription(o))
+        .catch(() => finish());
+    });
+  }
+
+  async function runNetworkDiagnostic() {
+    const el = document.getElementById('net-diag');
+    if (!window.RTCPeerConnection) {
+      el.textContent = "❌ WebRTC non supporté par ce navigateur.";
+      el.style.color = "#ef4444";
+      return;
+    }
+
+    el.textContent = "🔎 Test du réseau (STUN/TURN)...";
+    el.style.color = "#94a3b8";
+
+    const r = await testRelay(iceServers || []);
+    relayAvailable = r.relay;
+
+    if (r.relay) {
+      el.textContent = "🌐 Relais TURN opérationnel ✅ (connexion possible depuis tous les réseaux)";
+      el.style.color = "#10b981";
+    } else if (r.errors.includes(401)) {
+      el.textContent = "⚠️ Identifiants TURN refusés (erreur 401). Vérifie METERED_APP / METERED_API_KEY.";
+      el.style.color = "#f59e0b";
+    } else if (r.srflx) {
+      el.textContent = "⚠️ Aucun relais TURN valide : la connexion ne marchera qu'entre réseaux « ouverts » (même Wi-Fi...). Configure METERED_APP / METERED_API_KEY.";
+      el.style.color = "#f59e0b";
+    } else {
+      el.textContent = "❌ Aucun accès STUN/TURN : réseau bloqué ou hors ligne.";
+      el.style.color = "#ef4444";
+    }
+  }
+
+  // Une fois connecté : chemin direct ou relayé ?
+  async function detectRoute(pc) {
+    try {
+      const stats = await pc.getStats();
+      let pair = null;
+      stats.forEach(r => {
+        if (r.type === 'transport' && r.selectedCandidatePairId) {
+          pair = stats.get(r.selectedCandidatePairId);
+        }
+      });
+      if (!pair) {
+        stats.forEach(r => {
+          if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') pair = r;
+        });
+      }
+      if (!pair) return '';
+      const l = stats.get(pair.localCandidateId);
+      const r = stats.get(pair.remoteCandidateId);
+      const relayed = (l && l.candidateType === 'relay') || (r && r.candidateType === 'relay');
+      return relayed ? 'relais' : 'direct';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function connectFailMessage() {
+    if (relayAvailable === false) {
+      return "Connexion impossible : aucun relais TURN valide (voir diagnostic). Configure METERED_APP / METERED_API_KEY.";
+    }
+    return "Connexion impossible : hôte injoignable ou réseau bloquant le P2P. Vérifie le code, et que l'hôte affiche aussi ✅.";
+  }
 
   // Cell types
   const EMPTY = 0;
@@ -680,8 +836,9 @@
   function refreshStatus() {
     if (role === 'client') {
       const ping = rtt !== null ? rtt + ' ms' : '…';
-      if (mySlot === -1) setStatus("👁️ Spectateur · ping " + ping, "#3b82f6");
-      else setStatus("⚡ Connecté · Joueur " + (mySlot + 1) + " · ping " + ping, "#3b82f6");
+      const route = routeType ? ' · ' + routeType : '';
+      if (mySlot === -1) setStatus("👁️ Spectateur · ping " + ping + route, "#3b82f6");
+      else setStatus("⚡ Connecté · Joueur " + (mySlot + 1) + " · ping " + ping + route, "#3b82f6");
     } else {
       const np = clients.filter(c => !c.spectator).length;
       const ns = clients.filter(c => c.spectator).length;
@@ -1062,19 +1219,27 @@
     return s;
   }
 
-  function initPeer() {
+  async function initPeer() {
     if (typeof Peer === 'undefined') {
       myIdEl.textContent = "—";
       setStatus("PeerJS non chargé (internet requis). Mode solo.", "#ef4444");
       return;
     }
 
+    setStatus("Chargement de la configuration réseau...", "#f59e0b");
+    const servers = await loadIceServers();
+
+    // Diagnostic TURN lancé une seule fois, en arrière-plan
+    if (!diagStarted) {
+      diagStarted = true;
+      runNetworkDiagnostic();
+    }
+
     roomCode = genCode();
     peer = new Peer(PEER_PREFIX + roomCode, {
       debug: 1,
       config: {
-        iceServers: ICE_SERVERS,
-        // Augmente le timeout ICE pour laisser le temps au TURN de faire le relais
+        iceServers: servers,
         iceTransportPolicy: 'all',
         iceCandidatePoolSize: 4
       }
@@ -1253,27 +1418,33 @@
 
     const c = peer.connect(PEER_PREFIX + code, {
       serialization: 'json',
-      reliable: true,
-      // Timeout plus large pour laisser le TURN s'établir
-      connectionTimeout: 20000
+      reliable: true
     });
     conn = c;
 
-    // Écoute du candidat local pour savoir si on est en direct ou en relais TURN
-    try {
-      c.on('iceStateChanged', state => {
-        if (state === 'checking') {
-          setStatus("Négociation WebRTC en cours (STUN/TURN)...", "#f59e0b");
+    // Suivi de la négociation ICE : échec détecté immédiatement
+    c.on('iceStateChanged', state => {
+      if (conn !== c) return;
+      if (state === 'checking') {
+        setStatus("Négociation WebRTC en cours (STUN/TURN)...", "#f59e0b");
+      } else if (state === 'failed') {
+        if (role === 'client') {
+          onHostLost(c);
+          return;
         }
-      });
-    } catch (e) {}
+        clearTimeout(connectTimer);
+        conn = null;
+        try { c.close(); } catch (e) {}
+        setStatus(connectFailMessage(), "#ef4444");
+      }
+    });
 
     clearTimeout(connectTimer);
     connectTimer = setTimeout(() => {
-      if (role !== 'client') {
+      if (role !== 'client' && conn === c) {
         conn = null;
         try { c.close(); } catch(e) {}
-        setStatus("Impossible de se connecter. Vérifie que le TURN est configuré (identifiants Metered).", "#ef4444");
+        setStatus(connectFailMessage(), "#ef4444");
       }
     }, 25000);
 
@@ -1299,6 +1470,7 @@
     clearInterval(pingTimer);
     clearTimeout(connectTimer);
     conn = null;
+    routeType = '';
     const wasClient = (role === 'client');
     resetSolo();
     setStatus(wasClient ? "Connexion à l'hôte perdue. Retour en mode hôte." : "Connexion fermée.", "#ef4444");
@@ -1324,6 +1496,13 @@
       pingTimer = setInterval(() => {
         if (conn && conn.open) conn.send({ k: 'ping', t: performance.now() });
       }, 2000);
+
+      // Direct ou relayé ?
+      routeType = '';
+      const pcRef = conn && conn.peerConnection;
+      if (pcRef) {
+        detectRoute(pcRef).then(r => { routeType = r; refreshStatus(); });
+      }
 
       updateUI();
       return;
@@ -1805,7 +1984,7 @@
   requestAnimationFrame(frame);
 </script>
 <script>
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
   });

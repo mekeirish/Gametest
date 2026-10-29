@@ -12,6 +12,7 @@
       --accent-green: #10b981;
       --accent-blue: #3b82f6;
       --accent-red: #ef4444;
+      --accent-orange: #f59e0b;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
     }
@@ -25,8 +26,7 @@
       touch-action: manipulation;
     }
 
-    /* FIX iOS : sans ça, impossible de taper dans le champ */
-    input[type="text"] {
+    input[type="text"], select {
       user-select: text;
       -webkit-user-select: text;
     }
@@ -55,7 +55,7 @@
       max-width: 500px;
     }
 
-    .network-card {
+    .panel {
       background: var(--panel-bg);
       border: 1px solid var(--border-color);
       border-radius: 12px;
@@ -67,6 +67,22 @@
       gap: 10px;
     }
 
+    .name-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .name-row label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-width: 55px;
+    }
+
+    .name-row input { flex: 1; }
+
     .id-row {
       display: flex;
       align-items: center;
@@ -77,11 +93,7 @@
       border: 1px solid var(--border-color);
     }
 
-    .id-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
+    .id-info { display: flex; flex-direction: column; gap: 2px; }
 
     .id-label {
       font-size: 10px;
@@ -98,28 +110,24 @@
       color: var(--accent-green);
     }
 
-    .join-row {
-      display: flex;
-      gap: 8px;
-    }
+    .join-row { display: flex; gap: 8px; }
 
     input[type="text"] {
       flex: 1;
       min-width: 0;
       padding: 10px 12px;
-      font-size: 16px; /* 16px = pas de zoom automatique sur iOS */
+      font-size: 16px;
       background: #0f172a;
       color: var(--text-main);
       border: 1px solid var(--border-color);
       border-radius: 6px;
       outline: none;
       font-family: monospace;
-      text-transform: uppercase;
     }
 
-    input[type="text"]:focus {
-      border-color: var(--accent-blue);
-    }
+    input[type="text"]:focus { border-color: var(--accent-blue); }
+
+    input[type="text"]:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .btn {
       padding: 10px 14px;
@@ -136,34 +144,151 @@
       color: #fff;
     }
 
-    .btn:active {
-      transform: scale(0.96);
-    }
+    .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:disabled:active { transform: none; }
 
-    .btn-copy {
-      background: #334155;
-      padding: 6px 10px;
-      font-size: 12px;
-    }
-
-    .btn-copy.copied {
-      background: var(--accent-green);
-    }
-
-    .btn-join {
-      background: var(--accent-blue);
-      white-space: nowrap;
-    }
+    .btn-copy { background: #334155; padding: 6px 10px; font-size: 12px; }
+    .btn-copy.copied { background: var(--accent-green); }
+    .btn-join { background: var(--accent-blue); white-space: nowrap; }
+    .btn-primary { background: var(--accent-green); }
+    .btn-secondary { background: #334155; }
+    .btn-danger { background: var(--accent-red); }
 
     .status-badge {
       font-size: 12px;
       text-align: center;
-      color: #f59e0b;
+      color: var(--accent-orange);
       font-weight: 500;
       padding: 2px 0;
     }
 
-    /* FIX : le wrapper prend la largeur dispo (sinon dépasse sur petits écrans) */
+    /* Players list */
+    .players-card h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    #players-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    #players-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      padding: 5px 10px;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 6px;
+      border: 1px solid transparent;
+    }
+
+    #players-list li .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    #players-list li .pname {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #players-list li .role {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #players-list li.empty {
+      color: var(--text-muted);
+      font-style: italic;
+      justify-content: center;
+    }
+
+    /* Editor */
+    .editor-panel {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .editor-panel.visible { display: flex; }
+
+    .editor-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .tool {
+      padding: 8px 12px;
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-main);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .tool.active {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .editor-row input[type="text"] {
+      flex: 1;
+      min-width: 100px;
+      font-size: 13px;
+      padding: 8px 10px;
+    }
+
+    .editor-row select {
+      flex: 1;
+      min-width: 100px;
+      padding: 8px 10px;
+      background: #0f172a;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .editor-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 2px 0;
+    }
+
+    /* Game buttons */
+    .game-buttons {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .game-buttons .btn {
+      flex: 1;
+      padding: 12px;
+      font-size: 14px;
+    }
+
+    /* Canvas */
     .canvas-wrapper {
       position: relative;
       width: 100%;
@@ -182,6 +307,12 @@
       aspect-ratio: 1 / 1;
     }
 
+    canvas.editing {
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    /* Controls */
     .controls-panel {
       display: flex;
       justify-content: space-between;
@@ -214,9 +345,7 @@
       -webkit-touch-callout: none;
     }
 
-    .btn-ctrl:active {
-      background: var(--border-color);
-    }
+    .btn-ctrl:active { background: var(--border-color); }
 
     .btn-fire {
       width: 70px;
@@ -231,30 +360,30 @@
 
     .btn-fire:active {
       transform: scale(0.92);
-      background: var(--accent-red);
       box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
     }
 
-    /* Masqué uniquement si l'appareil a une vraie souris (pas sur tablette tactile) */
     @media (pointer: fine) {
-      .controls-panel {
-        display: none;
-      }
+      .controls-panel { display: none; }
     }
   </style>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#050608">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="./icon.png">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#050608">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="./icon.png">
 </head>
 <body>
 
   <div class="app-container">
 
-    <!-- Panneau Réseau & Connexion -->
-    <div class="network-card">
+    <div class="panel network-card">
+      <div class="name-row">
+        <label for="my-name">Pseudo</label>
+        <input type="text" id="my-name" value="Hôte" maxlength="16" autocomplete="off" spellcheck="false">
+      </div>
+
       <div class="id-row">
         <div class="id-info">
           <span class="id-label">Code de ma partie</span>
@@ -273,12 +402,43 @@
       <div id="status" class="status-badge">Initialisation du réseau WebRTC...</div>
     </div>
 
-    <!-- Zone de Jeu -->
+    <div class="panel players-card">
+      <h3>Joueurs & Spectateurs</h3>
+      <ul id="players-list"></ul>
+    </div>
+
+    <div id="editor-panel" class="panel editor-panel">
+      <div class="editor-row">
+        <button class="tool active" data-tool="wall" onclick="setEditorTool('wall', this)">🧱 Mur</button>
+        <button class="tool" data-tool="erase" onclick="setEditorTool('erase', this)">🧹 Gomme</button>
+        <button class="btn btn-secondary" onclick="clearMap()">Vider</button>
+      </div>
+      <div class="editor-row">
+        <input type="text" id="map-name" placeholder="Nom de la map" maxlength="24">
+        <button class="btn btn-secondary" onclick="saveMap()">💾 Enregistrer</button>
+      </div>
+      <div class="editor-row">
+        <select id="saved-maps" onchange="onMapSelected(this.value)">
+          <option value="">📂 Charger une map...</option>
+        </select>
+      </div>
+      <div class="editor-hint">Cliquez/glissez sur la grille pour dessiner</div>
+      <div class="editor-row">
+        <button class="btn btn-primary" onclick="exitEditor()" style="flex:1">✓ Terminer l'édition</button>
+      </div>
+    </div>
+
+    <div class="game-buttons">
+      <button id="btn-edit-map" class="btn btn-secondary" onclick="toggleEditor()">✏️ Éditer</button>
+      <button id="btn-start" class="btn btn-primary" onclick="startGame()">▶️ Créer la partie</button>
+      <button id="btn-back-lobby" class="btn btn-secondary" onclick="backToLobby()" style="display:none">⬅️ Lobby</button>
+      <button id="btn-quit" class="btn btn-danger" onclick="quitGame()" style="display:none">🚪 Quitter</button>
+    </div>
+
     <div class="canvas-wrapper">
       <canvas id="gameCanvas" width="480" height="480"></canvas>
     </div>
 
-    <!-- Contrôles Tactiles -->
     <div class="controls-panel">
       <div class="dpad">
         <div></div>
@@ -291,7 +451,6 @@
         <button class="btn-ctrl" data-key="ArrowDown">▼</button>
         <div></div>
       </div>
-
       <button class="btn-ctrl btn-fire" data-fire="1">💥</button>
     </div>
 
@@ -302,19 +461,23 @@
   // CONSTANTES
   // ============================================================
   const W = 480, H = 480;
+  const CELL = 24;
+  const COLS = W / CELL;   // 20
+  const ROWS = H / CELL;   // 20
   const TANK = 24;
-  const SPEED = 3;              // px par tick
-  const BULLET_SPEED = 6;       // px par tick
-  const SHOOT_CD = 350;         // ms entre deux tirs
-  const TICK_MS = 1000 / 60;    // pas de temps fixe : 60 ticks/s
+  const SPEED = 3;
+  const BULLET_SPEED = 6;
+  const SHOOT_CD = 350;
+  const TICK_MS = 1000 / 60;
   const MAX_PLAYERS = 4;
   const PEER_PREFIX = 'bcp2p-';
+  const MAPS_KEY = 'battlecity-maps';
 
   const SPAWNS = [
-    { x: 48,  y: 228, dir: 'RIGHT' },
-    { x: 408, y: 228, dir: 'LEFT'  },
-    { x: 228, y: 48,  dir: 'DOWN'  },
-    { x: 228, y: 408, dir: 'UP'    }
+    { cx: 2,  cy: 9,  dir: 'RIGHT' },
+    { cx: 17, cy: 9,  dir: 'LEFT'  },
+    { cx: 9,  cy: 2,  dir: 'DOWN'  },
+    { cx: 9,  cy: 17, dir: 'UP'    }
   ];
   const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b'];
   const DIRS = { UP: [0, -1], DOWN: [0, 1], LEFT: [-1, 0], RIGHT: [1, 0] };
@@ -325,17 +488,26 @@
   const myIdEl = document.getElementById("my-id");
 
   // ============================================================
-  // ÉTAT
+  // ÉTAT GLOBAL
   // ============================================================
-  let role = 'host';            // 'host' | 'client'
-  let mySlot = 0;               // 0 = hôte, 1..3 = invités
+  let role = 'host';
+  let mySlot = 0;
+  let gameState = 'lobby'; // 'lobby' | 'playing'
+  let editorMode = false;
+  let editorTool = 'wall';
+
+  let grid = [];
   let tanks = [null, null, null, null];
-  let bullets = [];             // { x, y, vx, vy, o }
+  let bullets = [];
 
   let peer = null;
   let roomCode = "";
-  let conn = null;              // connexion vers l'hôte (si client)
-  let players = [null, null, null, null]; // connexions invités (si hôte)
+  let conn = null;        // client-side connection
+  let clients = [];       // host-side: [{conn, name, slot, spectator}]
+  let myName = 'Hôte';
+  let playerNames = [null, null, null, null];
+  let spectatorNames = [];
+
   let connectTimer = null;
   let pingTimer = null;
   let rtt = null;
@@ -344,7 +516,31 @@
   let lastSentPos = "";
 
   // ============================================================
-  // ENTRÉES (clavier + tactile)
+  // GRILLE
+  // ============================================================
+  function makeEmptyGrid() {
+    const g = [];
+    for (let y = 0; y < ROWS; y++) g.push(new Array(COLS).fill(0));
+    return g;
+  }
+
+  function canMoveTo(slot, cx, cy) {
+    if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) return false;
+    if (grid[cy][cx] === 1) return false;
+    for (let i = 0; i < MAX_PLAYERS; i++) {
+      if (i === slot) continue;
+      const o = tanks[i];
+      if (o && o.cx === cx && o.cy === cy) return false;
+    }
+    return true;
+  }
+
+  function clearSpawnCells() {
+    for (const sp of SPAWNS) grid[sp.cy][sp.cx] = 0;
+  }
+
+  // ============================================================
+  // ENTRÉES
   // ============================================================
   const keys = {};
   let fireHeld = false;
@@ -370,7 +566,7 @@
 
   window.addEventListener("keydown", e => {
     if (e.target && e.target.tagName === 'INPUT') return;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
     if (e.code === 'Space') { fireHeld = true; return; }
     keys[e.code] = true;
   });
@@ -380,18 +576,16 @@
     keys[e.code] = false;
   });
 
-  // Évite les touches "coincées"
   window.addEventListener("blur", clearInputs);
   document.addEventListener("visibilitychange", () => {
     clearInputs();
     if (!document.hidden) requestWakeLock();
   });
 
-  // Boutons tactiles (pointer events : multi-touch fiable + annulation gérée)
   document.querySelectorAll('[data-key]').forEach(btn => {
     const code = btn.dataset.key;
     btn.addEventListener('pointerdown', e => { e.preventDefault(); setKey(code, true); });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
+    ['pointerup','pointercancel','pointerleave'].forEach(ev =>
       btn.addEventListener(ev, () => setKey(code, false)));
     btn.addEventListener('contextmenu', e => e.preventDefault());
   });
@@ -402,12 +596,11 @@
       fireHeld = true;
       if (navigator.vibrate) navigator.vibrate(10);
     });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev =>
+    ['pointerup','pointercancel','pointerleave'].forEach(ev =>
       btn.addEventListener(ev, () => { fireHeld = false; }));
     btn.addEventListener('contextmenu', e => e.preventDefault());
   });
 
-  // Garde l'écran allumé (important pour l'hôte)
   let wakeLock = null;
   async function requestWakeLock() {
     try {
@@ -415,12 +608,12 @@
         wakeLock = await navigator.wakeLock.request('screen');
         wakeLock.addEventListener('release', () => { wakeLock = null; });
       }
-    } catch (e) { /* non bloquant */ }
+    } catch (e) {}
   }
   window.addEventListener('pointerdown', requestWakeLock, { once: true });
 
   // ============================================================
-  // UTILITAIRES UI
+  // UI
   // ============================================================
   function setStatus(text, color) {
     statusEl.textContent = text;
@@ -430,12 +623,101 @@
   function refreshStatus() {
     if (role === 'client') {
       const ping = rtt !== null ? rtt + ' ms' : '…';
-      setStatus("⚡ P2P connecté · Joueur " + (mySlot + 1) + " · ping " + ping, "#3b82f6");
+      if (mySlot === -1) setStatus("👁️ Spectateur · ping " + ping, "#3b82f6");
+      else setStatus("⚡ Connecté · Joueur " + (mySlot + 1) + " · ping " + ping, "#3b82f6");
     } else {
-      const n = players.filter(Boolean).length;
-      if (n === 0) setStatus("Prêt. Partagez votre code (jusqu'à 4 joueurs).", "#f59e0b");
-      else setStatus("🎮 " + (n + 1) + " joueurs connectés · Vous êtes l'Hôte", "#10b981");
+      const np = clients.filter(c => !c.spectator).length;
+      const ns = clients.filter(c => c.spectator).length;
+      if (gameState === 'playing') {
+        setStatus("🎮 Partie en cours · " + (np + 1) + " joueur(s), " + ns + " spect.", "#10b981");
+      } else if (np === 0 && ns === 0) {
+        setStatus("Prêt. Partagez votre code.", "#f59e0b");
+      } else {
+        setStatus("🎮 " + (np + 1) + " joueur(s) · " + ns + " spect. · Vous êtes l'Hôte", "#10b981");
+      }
     }
+  }
+
+  function makePlayerLi(name, role, color) {
+    const li = document.createElement('li');
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.background = color;
+    const n = document.createElement('span');
+    n.className = 'pname';
+    n.textContent = name;
+    const r = document.createElement('span');
+    r.className = 'role';
+    r.textContent = role;
+    li.appendChild(dot);
+    li.appendChild(n);
+    li.appendChild(r);
+    return li;
+  }
+
+  function updatePlayersList() {
+    const ul = document.getElementById('players-list');
+    ul.innerHTML = '';
+
+    if (role === 'host') {
+      ul.appendChild(makePlayerLi(myName, 'Hôte', COLORS[0]));
+      const players = clients.filter(c => !c.spectator && c.slot !== null)
+                             .sort((a,b) => a.slot - b.slot);
+      for (const c of players) {
+        ul.appendChild(makePlayerLi(c.name, 'Joueur ' + (c.slot + 1), COLORS[c.slot]));
+      }
+      const specs = clients.filter(c => c.spectator);
+      for (const c of specs) {
+        ul.appendChild(makePlayerLi(c.name, 'Spectateur', '#64748b'));
+      }
+    } else if (role === 'client') {
+      for (let i = 0; i < MAX_PLAYERS; i++) {
+        if (playerNames[i]) {
+          const label = (i === mySlot) ? 'Vous (J' + (i+1) + ')' : (i === 0 ? 'Hôte' : 'Joueur ' + (i+1));
+          ul.appendChild(makePlayerLi(playerNames[i], label, COLORS[i]));
+        }
+      }
+      for (const name of spectatorNames) {
+        ul.appendChild(makePlayerLi(name, 'Spectateur', '#64748b'));
+      }
+    }
+
+    if (ul.children.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = 'Aucun joueur';
+      ul.appendChild(li);
+    }
+  }
+
+  function updateUI() {
+    const isHost = role === 'host';
+    const isClient = role === 'client';
+    const inLobby = gameState === 'lobby';
+    const inGame = gameState === 'playing';
+
+    document.querySelector('.id-row').style.display = isHost ? 'flex' : 'none';
+    const canJoin = isHost && inLobby && clients.length === 0;
+    document.querySelector('.join-row').style.display = canJoin ? 'flex' : 'none';
+
+    const nameInput = document.getElementById('my-name');
+    nameInput.disabled = isClient;
+    if (isClient) nameInput.value = myName;
+
+    document.getElementById('btn-edit-map').style.display =
+      (isHost && inLobby && !editorMode) ? 'inline-flex' : 'none';
+    document.getElementById('btn-start').style.display =
+      (isHost && inLobby) ? 'inline-flex' : 'none';
+    document.getElementById('btn-back-lobby').style.display =
+      (isHost && inGame) ? 'inline-flex' : 'none';
+    document.getElementById('btn-quit').style.display =
+      isClient ? 'inline-flex' : 'none';
+
+    document.getElementById('editor-panel').classList.toggle('visible', editorMode);
+    canvas.classList.toggle('editing', editorMode);
+
+    refreshStatus();
+    updatePlayersList();
   }
 
   function fallbackCopy(text, done) {
@@ -454,7 +736,6 @@
 
   function copyMyId() {
     if (!roomCode) return;
-
     const done = () => {
       const copyBtn = document.getElementById('copy-btn');
       const copyText = document.getElementById('copy-text');
@@ -466,7 +747,6 @@
         copyText.textContent = 'Copier';
       }, 2000);
     };
-
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(roomCode).then(done).catch(() => fallbackCopy(roomCode, done));
     } else {
@@ -474,49 +754,86 @@
     }
   }
 
+  document.getElementById('my-name').addEventListener('input', e => {
+    if (role === 'host') {
+      myName = e.target.value.trim() || 'Hôte';
+      broadcastPlayerList();
+      updatePlayersList();
+    }
+  });
+
   // ============================================================
-  // TANKS / JEU
+  // TANKS
   // ============================================================
   function makeTank(slot) {
     const s = SPAWNS[slot];
-    return { x: s.x, y: s.y, tx: s.x, ty: s.y, dir: s.dir, score: 0, q: 0, cd: 0 };
+    return {
+      x: s.cx * CELL, y: s.cy * CELL,
+      tx: s.cx * CELL, ty: s.cy * CELL,
+      cx: s.cx, cy: s.cy,
+      dir: s.dir, score: 0, q: 0, cd: 0
+    };
   }
 
-  function resetSolo() {
-    role = 'host';
-    mySlot = 0;
-    tanks = [makeTank(0), null, null, null];
-    bullets = [];
-    players = [null, null, null, null];
+  function updateTankMovement(t, slot, inp) {
+    const atRest = (t.x === t.tx && t.y === t.ty);
+
+    if (atRest && inp) {
+      let dx = 0, dy = 0, dir = null;
+      if (inp.up)         { dy = -1; dir = 'UP'; }
+      else if (inp.down)  { dy = 1;  dir = 'DOWN'; }
+      else if (inp.left)  { dx = -1; dir = 'LEFT'; }
+      else if (inp.right) { dx = 1;  dir = 'RIGHT'; }
+
+      if (dir) {
+        t.dir = dir;
+        const nx = t.cx + dx, ny = t.cy + dy;
+        if (canMoveTo(slot, nx, ny)) {
+          t.cx = nx; t.cy = ny;
+          t.tx = nx * CELL;
+          t.ty = ny * CELL;
+        }
+      }
+    }
+
+    // Interpolation vers la cible
+    if (t.x !== t.tx) {
+      const d = t.tx - t.x;
+      if (Math.abs(d) <= SPEED) t.x = t.tx;
+      else t.x += Math.sign(d) * SPEED;
+    }
+    if (t.y !== t.ty) {
+      const d = t.ty - t.y;
+      if (Math.abs(d) <= SPEED) t.y = t.ty;
+      else t.y += Math.sign(d) * SPEED;
+    }
   }
 
-  function moveTank(t, inp) {
-    if (inp.up)         { t.y -= SPEED; t.dir = 'UP'; }
-    else if (inp.down)  { t.y += SPEED; t.dir = 'DOWN'; }
-    else if (inp.left)  { t.x -= SPEED; t.dir = 'LEFT'; }
-    else if (inp.right) { t.x += SPEED; t.dir = 'RIGHT'; }
-
-    t.x = Math.max(0, Math.min(W - TANK, t.x));
-    t.y = Math.max(0, Math.min(H - TANK, t.y));
-  }
-
-  // Lissage des tanks distants (leur position arrive ~30 fois/s)
   function smoothRemote(t) {
-    const dx = t.tx - t.x, dy = t.ty - t.y;
-    if (Math.abs(dx) > 60 || Math.abs(dy) > 60) { t.x = t.tx; t.y = t.ty; }
-    else { t.x += dx * 0.4; t.y += dy * 0.4; }
+    if (t.x !== t.tx) {
+      const d = t.tx - t.x;
+      if (Math.abs(d) > 60) t.x = t.tx;
+      else if (Math.abs(d) <= SPEED) t.x = t.tx;
+      else t.x += Math.sign(d) * SPEED;
+    }
+    if (t.y !== t.ty) {
+      const d = t.ty - t.y;
+      if (Math.abs(d) > 60) t.y = t.ty;
+      else if (Math.abs(d) <= SPEED) t.y = t.ty;
+      else t.y += Math.sign(d) * SPEED;
+    }
   }
 
-  // Hôte uniquement : crée l'obus
   function tryShoot(slot) {
     const t = tanks[slot];
     if (!t || t.cd > 0) return;
     t.cd = SHOOT_CD;
 
     const v = DIRS[t.dir];
+    const px = t.x + TANK / 2 + v[0] * (CELL / 2);
+    const py = t.y + TANK / 2 + v[1] * (CELL / 2);
     bullets.push({
-      x: t.x + TANK / 2 + v[0] * 14,
-      y: t.y + TANK / 2 + v[1] * 14,
+      x: px, y: py,
       vx: v[0] * BULLET_SPEED,
       vy: v[1] * BULLET_SPEED,
       o: slot
@@ -526,16 +843,14 @@
   function requestShoot() {
     const me = tanks[mySlot];
     if (!me || me.cd > 0) return;
-
     if (role === 'host') {
       tryShoot(0);
-    } else if (conn && conn.open) {
+    } else if (conn && conn.open && mySlot >= 0) {
       me.cd = SHOOT_CD;
       conn.send({ k: 'shoot' });
     }
   }
 
-  // Hôte uniquement : déplacement des obus + collisions
   function hostBullets() {
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
@@ -547,26 +862,34 @@
         continue;
       }
 
+      const gcx = Math.floor(b.x / CELL);
+      const gcy = Math.floor(b.y / CELL);
+      if (gcx >= 0 && gcx < COLS && gcy >= 0 && gcy < ROWS && grid[gcy][gcx] === 1) {
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      let hit = false;
       for (let s = 0; s < MAX_PLAYERS; s++) {
         const t = tanks[s];
         if (!t || s === b.o) continue;
-
         if (b.x >= t.x && b.x <= t.x + TANK && b.y >= t.y && b.y <= t.y + TANK) {
           if (tanks[b.o]) tanks[b.o].score++;
-          // Réapparition de la victime
           const sp = SPAWNS[s];
-          t.x = t.tx = sp.x;
-          t.y = t.ty = sp.y;
+          t.cx = sp.cx; t.cy = sp.cy;
+          t.x = sp.cx * CELL; t.y = sp.cy * CELL;
+          t.tx = t.x; t.ty = t.y;
           t.dir = sp.dir;
           t.q++;
           bullets.splice(i, 1);
+          hit = true;
           break;
         }
       }
+      if (hit) continue;
     }
   }
 
-  // Invité : avance les obus entre deux snapshots (affichage fluide)
   function clientBullets() {
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
@@ -576,38 +899,40 @@
     }
   }
 
+  // ============================================================
+  // BOUCLE
+  // ============================================================
   function tick() {
     tickCount++;
 
-    // Mon tank : mouvement local immédiat (zéro latence ressentie)
-    const me = tanks[mySlot];
-    if (me) {
-      moveTank(me, getInput());
-      if (fireHeld) requestShoot();
-    }
+    if (gameState === 'playing' && !editorMode) {
+      const me = tanks[mySlot];
+      if (me) {
+        updateTankMovement(me, mySlot, getInput());
+        if (fireHeld) requestShoot();
+      }
 
-    // Cooldowns
-    for (let i = 0; i < MAX_PLAYERS; i++) {
-      const t = tanks[i];
-      if (t && t.cd > 0) t.cd -= TICK_MS;
-    }
+      for (let i = 0; i < MAX_PLAYERS; i++) {
+        if (i !== mySlot && tanks[i]) smoothRemote(tanks[i]);
+      }
 
-    // Lissage des tanks des autres joueurs
-    for (let i = 0; i < MAX_PLAYERS; i++) {
-      if (i !== mySlot && tanks[i]) smoothRemote(tanks[i]);
-    }
+      for (let i = 0; i < MAX_PLAYERS; i++) {
+        const t = tanks[i];
+        if (t && t.cd > 0) t.cd -= TICK_MS;
+      }
 
-    if (role === 'host') {
-      hostBullets();
-      if (tickCount % 3 === 0) broadcastSnapshot(); // 20 Hz
-    } else {
-      clientBullets();
-      if (tickCount % 2 === 0) sendMyPosition();    // 30 Hz
+      if (role === 'host') {
+        hostBullets();
+        if (tickCount % 2 === 0) broadcastSnapshot();
+      } else {
+        clientBullets();
+        if (tickCount % 2 === 0) sendMyPosition();
+      }
     }
   }
 
   // ============================================================
-  // RÉSEAU
+  // RÉSEAU - HÔTE
   // ============================================================
   function genCode() {
     const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -619,7 +944,7 @@
   function initPeer() {
     if (typeof Peer === 'undefined') {
       myIdEl.textContent = "—";
-      setStatus("Bibliothèque PeerJS non chargée (internet requis). Mode solo.", "#ef4444");
+      setStatus("PeerJS non chargé (internet requis). Mode solo.", "#ef4444");
       return;
     }
 
@@ -631,8 +956,6 @@
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
           { urls: 'stun:global.stun.twilio.com:3478' }
-          // Pour les réseaux 4G/entreprise stricts, ajouter un serveur TURN :
-          // { urls: 'turn:VOTRE_SERVEUR:3478', username: '...', credential: '...' }
         ]
       }
     });
@@ -645,12 +968,11 @@
     peer.on('connection', onIncomingConnection);
 
     peer.on('disconnected', () => {
-      // Perte du serveur de signalisation : les parties en cours restent actives
       if (peer && !peer.destroyed) peer.reconnect();
     });
 
     peer.on('error', err => {
-      if (err.type === 'unavailable-id') {   // code déjà pris : on en génère un autre
+      if (err.type === 'unavailable-id') {
         peer.destroy();
         initPeer();
         return;
@@ -661,7 +983,7 @@
         setStatus("Aucune partie trouvée avec ce code.", "#ef4444");
         return;
       }
-      if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(err.type)) {
+      if (['network','server-error','socket-error','socket-closed'].includes(err.type)) {
         setStatus("Serveur de connexion injoignable…", "#ef4444");
         return;
       }
@@ -669,38 +991,106 @@
     });
   }
 
-  // ---------- Côté HÔTE ----------
+  function findFreeSlot() {
+    for (let i = 1; i < MAX_PLAYERS; i++) {
+      if (!clients.some(c => !c.spectator && c.slot === i)) return i;
+    }
+    return -1;
+  }
+
+  function broadcastPlayerList() {
+    if (role !== 'host') return;
+    playerNames = [myName, null, null, null];
+    for (const c of clients) {
+      if (!c.spectator && c.slot !== null && c.slot >= 1 && c.slot < MAX_PLAYERS) {
+        playerNames[c.slot] = c.name;
+      }
+    }
+    spectatorNames = clients.filter(c => c.spectator).map(c => c.name);
+    const msg = { k: 'players', playerNames, spectatorNames };
+    for (const c of clients) {
+      if (c.conn.open) c.conn.send(msg);
+    }
+  }
+
   function onIncomingConnection(c) {
-    let slot = -1;
+    let clientObj = null;
 
     c.on('open', () => {
-      // Un invité ne peut pas servir d'hôte
-      if (role === 'client') { c.send({ k: 'full' }); setTimeout(() => c.close(), 200); return; }
-
-      for (let i = 1; i < MAX_PLAYERS; i++) {
-        if (!players[i]) { slot = i; break; }
+      if (role === 'client') {
+        c.send({ k: 'full', reason: 'host-is-client' });
+        setTimeout(() => c.close(), 200);
       }
-      if (slot < 0) { c.send({ k: 'full' }); setTimeout(() => c.close(), 200); return; }
-
-      players[slot] = c;
-      tanks[slot] = makeTank(slot);
-      c.send({ k: 'hello', slot: slot });
-      refreshStatus();
     });
 
     c.on('data', d => {
-      if (slot < 0) return;
-      onHostData(slot, c, d);
+      if (!d) return;
+
+      if (d.k === 'join' && !clientObj) {
+        let slot = -1;
+        if (gameState === 'lobby') {
+          slot = findFreeSlot();
+        }
+        const isSpec = slot < 0;
+
+        clientObj = {
+          conn: c,
+          name: (d.name || 'Joueur').slice(0, 16),
+          slot: isSpec ? null : slot,
+          spectator: isSpec
+        };
+        clients.push(clientObj);
+
+        broadcastPlayerList();
+
+        c.send({
+          k: 'welcome',
+          slot: clientObj.slot,
+          spectator: isSpec,
+          playerNames: playerNames,
+          spectatorNames: spectatorNames,
+          gameState: gameState,
+          grid: gameState === 'playing' ? grid : null
+        });
+
+        updateUI();
+        return;
+      }
+
+      if (!clientObj) return;
+
+      if (d.k === 'pos' && clientObj.slot !== null) {
+        const t = tanks[clientObj.slot];
+        if (!t) return;
+        if (d.q !== t.q) return;
+        t.tx = Math.max(0, Math.min(W - TANK, num(d.x, t.tx)));
+        t.ty = Math.max(0, Math.min(H - TANK, num(d.y, t.ty)));
+        if (typeof d.cx === 'number') t.cx = d.cx;
+        if (typeof d.cy === 'number') t.cy = d.cy;
+        if (DIRS[d.d]) t.dir = d.d;
+      } else if (d.k === 'shoot' && clientObj.slot !== null) {
+        const t = tanks[clientObj.slot];
+        if (t) { t.x = t.tx; t.y = t.ty; tryShoot(clientObj.slot); }
+      } else if (d.k === 'ping') {
+        c.send({ k: 'pong', t: d.t });
+      }
     });
 
     const leave = () => {
-      if (slot > 0 && players[slot] === c) {
-        players[slot] = null;
-        tanks[slot] = null;
-        bullets = bullets.filter(b => b.o !== slot);
-        refreshStatus();
+      if (!clientObj) return;
+      const idx = clients.indexOf(clientObj);
+      if (idx >= 0) {
+        if (clientObj.slot !== null) {
+          tanks[clientObj.slot] = null;
+          bullets = bullets.filter(b => b.o !== clientObj.slot);
+        }
+        clients.splice(idx, 1);
+        broadcastPlayerList();
+        updateUI();
       }
+      clientObj = null;
     };
+
     c.on('close', leave);
     c.on('error', leave);
   }
@@ -709,81 +1099,61 @@
     return (typeof v === 'number' && isFinite(v)) ? v : def;
   }
 
-  function onHostData(slot, c, d) {
-    const t = tanks[slot];
-    if (!t || !d) return;
-
-    if (d.k === 'pos') {
-      if (d.q !== t.q) return; // position périmée (avant réapparition) : ignorée
-      t.tx = Math.max(0, Math.min(W - TANK, num(d.x, t.tx)));
-      t.ty = Math.max(0, Math.min(H - TANK, num(d.y, t.ty)));
-      if (DIRS[d.d]) t.dir = d.d;
-    } else if (d.k === 'shoot') {
-      // Utilise la position la plus récente connue de l'invité
-      t.x = t.tx; t.y = t.ty;
-      tryShoot(slot);
-    } else if (d.k === 'ping') {
-      c.send({ k: 'pong', t: d.t });
-    }
-  }
-
   function broadcastSnapshot() {
-    let any = false;
-    for (let i = 1; i < MAX_PLAYERS; i++) if (players[i] && players[i].open) any = true;
-    if (!any) return;
-
+    if (clients.length === 0) return;
     const snap = {
       k: 'snap',
-      t: tanks.map(t => t ? { x: t.x, y: t.y, d: t.dir, s: t.score, q: t.q } : 0),
-      b: bullets.map(b => [b.x, b.y, b.vx, b.vy, b.o])
+      t: tanks.map(t => t ? {
+        x: Math.round(t.x), y: Math.round(t.y),
+        cx: t.cx, cy: t.cy,
+        d: t.dir, s: t.score, q: t.q
+      } : 0),
+      b: bullets.map(b => [Math.round(b.x), Math.round(b.y), b.vx, b.vy, b.o])
     };
-
-    for (let i = 1; i < MAX_PLAYERS; i++) {
-      const c = players[i];
-      if (c && c.open) c.send(snap);
+    for (const c of clients) {
+      if (c.conn.open) c.conn.send(snap);
     }
   }
 
-  // ---------- Côté INVITÉ ----------
+  // ============================================================
+  // RÉSEAU - CLIENT
+  // ============================================================
   function connectToHost() {
-    if (!peer || !peer.open) return alert("Réseau pas encore prêt, patientez un instant.");
+    if (!peer || !peer.open) return alert("Réseau pas encore prêt.");
     if (role === 'client') return;
-    if (players.some(Boolean)) return alert("Des joueurs sont déjà connectés à votre partie.");
+    if (clients.length > 0) return alert("Vous avez déjà des joueurs connectés.");
 
     let code = document.getElementById('target-id').value.trim().toUpperCase();
     code = code.replace(/^BCP2P-/, '');
     if (!code) return alert("Veuillez entrer un code valide.");
     if (code === roomCode) return alert("C'est votre propre code !");
 
-    setStatus("Connexion en cours à l'hôte...", "#f59e0b");
+    myName = (document.getElementById('my-name').value.trim() || 'Invité').slice(0, 16);
+
+    setStatus("Connexion en cours...", "#f59e0b");
 
     const c = peer.connect(PEER_PREFIX + code, { serialization: 'json' });
     conn = c;
 
     clearTimeout(connectTimer);
     connectTimer = setTimeout(() => {
-      if (!c.open) {
+      if (role !== 'client') {
         conn = null;
-        c.close();
-        setStatus("Impossible de se connecter (réseau bloquant le P2P ? un serveur TURN peut être nécessaire).", "#ef4444");
+        try { c.close(); } catch(e) {}
+        setStatus("Impossible de se connecter (réseau bloquant le P2P ?).", "#ef4444");
       }
     }, 12000);
 
     c.on('open', () => {
       clearTimeout(connectTimer);
-      role = 'client';
-      mySlot = -1;
-      tanks = [null, null, null, null];
-      bullets = [];
-      rtt = null;
-      lastSentPos = "";
-
-      clearInterval(pingTimer);
-      pingTimer = setInterval(() => {
-        if (c.open) c.send({ k: 'ping', t: performance.now() });
-      }, 2000);
-
-      setStatus("Connexion établie, synchronisation...", "#3b82f6");
+      connectTimer = setTimeout(() => {
+        if (role !== 'client') {
+          setStatus("Pas de réponse de l'hôte.", "#ef4444");
+          try { c.close(); } catch(e) {}
+        }
+      }, 6000);
+      c.send({ k: 'join', name: myName });
+      setStatus("En attente de validation par l'hôte...", "#3b82f6");
     });
 
     c.on('data', onClientData);
@@ -804,17 +1174,67 @@
   function onClientData(d) {
     if (!d) return;
 
-    if (d.k === 'hello') {
-      mySlot = d.slot;
-      tanks[mySlot] = makeTank(mySlot);
+    if (d.k === 'welcome') {
+      clearTimeout(connectTimer);
+      role = 'client';
+      mySlot = d.spectator ? -1 : d.slot;
+      gameState = d.gameState;
+      playerNames = d.playerNames || [null,null,null,null];
+      spectatorNames = d.spectatorNames || [];
+      if (d.grid) grid = d.grid;
+
+      rtt = null;
+      lastSentPos = "";
+      clearInterval(pingTimer);
+      pingTimer = setInterval(() => {
+        if (conn && conn.open) conn.send({ k: 'ping', t: performance.now() });
+      }, 2000);
+
+      updateUI();
+      return;
+    }
+
+    if (d.k === 'full') {
+      clearTimeout(connectTimer);
+      setStatus("Partie complète.", "#ef4444");
+      if (conn) { try { conn.close(); } catch(e) {} conn = null; }
+      return;
+    }
+
+    if (d.k === 'players') {
+      playerNames = d.playerNames || [null,null,null,null];
+      spectatorNames = d.spectatorNames || [];
+      updatePlayersList();
       refreshStatus();
-    } else if (d.k === 'full') {
-      setStatus("Partie complète (4 joueurs maximum).", "#ef4444");
-    } else if (d.k === 'pong') {
+      return;
+    }
+
+    if (d.k === 'pong') {
       rtt = Math.round(performance.now() - d.t);
       refreshStatus();
-    } else if (d.k === 'snap') {
+      return;
+    }
+
+    if (d.k === 'start') {
+      grid = d.grid;
+      gameState = 'playing';
+      tanks = [null, null, null, null];
+      bullets = [];
+      updateUI();
+      return;
+    }
+
+    if (d.k === 'lobby') {
+      gameState = 'lobby';
+      tanks = [null, null, null, null];
+      bullets = [];
+      updateUI();
+      return;
+    }
+
+    if (d.k === 'snap') {
       applySnapshot(d);
+      return;
     }
   }
 
@@ -825,22 +1245,28 @@
 
       let t = tanks[i];
       if (!t) {
-        t = tanks[i] = { x: s.x, y: s.y, tx: s.x, ty: s.y, dir: s.d, score: s.s, q: s.q, cd: 0 };
+        t = tanks[i] = {
+          x: s.x, y: s.y, tx: s.x, ty: s.y,
+          cx: s.cx, cy: s.cy,
+          dir: s.d, score: s.s, q: s.q, cd: 0
+        };
       }
       t.score = s.s;
 
       if (i === mySlot) {
-        // Je suis maître de ma position, sauf si l'hôte m'a fait réapparaître
         if (s.q !== t.q) {
           t.q = s.q;
-          t.x = s.x; t.y = s.y; t.tx = s.x; t.ty = s.y;
+          t.cx = s.cx; t.cy = s.cy;
+          t.x = s.cx * CELL; t.y = s.cy * CELL;
+          t.tx = t.x; t.ty = t.y;
           t.dir = s.d;
         }
       } else {
-        t.tx = s.x; t.ty = s.y; t.dir = s.d;
+        t.tx = s.x; t.ty = s.y;
+        t.cx = s.cx; t.cy = s.cy;
+        t.dir = s.d;
       }
     }
-
     bullets = snap.b.map(a => ({ x: a[0], y: a[1], vx: a[2], vy: a[3], o: a[4] }));
   }
 
@@ -848,15 +1274,179 @@
     const me = tanks[mySlot];
     if (!me || !conn || !conn.open) return;
 
-    const key = me.x + "," + me.y + "," + me.dir + "," + me.q;
-    if (key === lastSentPos) return; // rien n'a changé : on n'envoie rien
+    const rx = Math.round(me.x);
+    const ry = Math.round(me.y);
+    const key = me.cx + "," + me.cy + "," + me.dir + "," + me.q + "," + rx + "," + ry;
+    if (key === lastSentPos) return;
     lastSentPos = key;
 
-    conn.send({ k: 'pos', x: me.x, y: me.y, d: me.dir, q: me.q });
+    conn.send({
+      k: 'pos',
+      x: rx, y: ry,
+      cx: me.cx, cy: me.cy,
+      d: me.dir, q: me.q
+    });
   }
 
   // ============================================================
-  // BOUCLE & RENDU
+  // CYCLE DE JEU
+  // ============================================================
+  function resetSolo() {
+    role = 'host';
+    mySlot = 0;
+    gameState = 'lobby';
+    tanks = [null, null, null, null];
+    bullets = [];
+    clients = [];
+    playerNames = [myName, null, null, null];
+    spectatorNames = [];
+    clearInputs();
+    updateUI();
+  }
+
+  function startGame() {
+    if (role !== 'host') return;
+    if (gameState === 'playing') return;
+
+    clearSpawnCells();
+    clearInputs();
+
+    gameState = 'playing';
+    bullets = [];
+    tanks = [null, null, null, null];
+    tanks[0] = makeTank(0);
+    for (const c of clients) {
+      if (!c.spectator && c.slot !== null && c.slot >= 1 && c.slot < MAX_PLAYERS) {
+        tanks[c.slot] = makeTank(c.slot);
+      }
+    }
+
+    const msg = { k: 'start', grid: grid };
+    for (const c of clients) {
+      if (c.conn.open) c.conn.send(msg);
+    }
+
+    updateUI();
+    setStatus("Partie démarrée !", "#10b981");
+  }
+
+  function backToLobby() {
+    if (role !== 'host') return;
+    if (gameState === 'lobby') return;
+
+    gameState = 'lobby';
+    tanks = [null, null, null, null];
+    bullets = [];
+    clearInputs();
+
+    const msg = { k: 'lobby' };
+    for (const c of clients) {
+      if (c.conn.open) c.conn.send(msg);
+    }
+
+    updateUI();
+  }
+
+  function quitGame() {
+    if (role !== 'client') return;
+    if (conn) { try { conn.close(); } catch(e) {} }
+    onHostLost(conn);
+  }
+
+  // ============================================================
+  // ÉDITEUR DE MAP
+  // ============================================================
+  function toggleEditor() {
+    if (role !== 'host' || gameState !== 'lobby') return;
+    editorMode = !editorMode;
+    if (editorMode) {
+      setStatus("Mode édition : dessinez vos murs.", "#3b82f6");
+    } else {
+      refreshStatus();
+    }
+    updateUI();
+  }
+
+  function exitEditor() {
+    editorMode = false;
+    updateUI();
+    refreshStatus();
+  }
+
+  function setEditorTool(tool, btn) {
+    editorTool = tool;
+    document.querySelectorAll('.tool').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function clearMap() {
+    if (!confirm("Effacer tous les murs ?")) return;
+    grid = makeEmptyGrid();
+  }
+
+  function loadSavedMaps() {
+    const maps = JSON.parse(localStorage.getItem(MAPS_KEY) || '{}');
+    const sel = document.getElementById('saved-maps');
+    sel.innerHTML = '<option value="">📂 Charger une map...</option>';
+    for (const name in maps) {
+      const o = document.createElement('option');
+      o.value = name;
+      o.textContent = name;
+      sel.appendChild(o);
+    }
+  }
+
+  function saveMap() {
+    const name = document.getElementById('map-name').value.trim();
+    if (!name) return alert("Entrez un nom pour la map.");
+    const maps = JSON.parse(localStorage.getItem(MAPS_KEY) || '{}');
+    maps[name] = grid;
+    localStorage.setItem(MAPS_KEY, JSON.stringify(maps));
+    loadSavedMaps();
+    document.getElementById('saved-maps').value = name;
+    setStatus('Map "' + name + '" enregistrée.', "#10b981");
+  }
+
+  function onMapSelected(name) {
+    if (!name) return;
+    const maps = JSON.parse(localStorage.getItem(MAPS_KEY) || '{}');
+    if (maps[name]) {
+      grid = JSON.parse(JSON.stringify(maps[name]));
+      setStatus('Map "' + name + '" chargée.', "#10b981");
+    }
+  }
+
+  // Peinture sur la grille
+  let painting = false;
+  function paintAt(e) {
+    if (!editorMode) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+    const cx = Math.floor(px / CELL);
+    const cy = Math.floor(py / CELL);
+    if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) return;
+    const v = (editorTool === 'wall') ? 1 : 0;
+    if (grid[cy][cx] !== v) grid[cy][cx] = v;
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    if (!editorMode) return;
+    e.preventDefault();
+    painting = true;
+    paintAt(e);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!editorMode || !painting) return;
+    paintAt(e);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev =>
+    canvas.addEventListener(ev, () => { painting = false; }));
+
+  // ============================================================
+  // RENDU
   // ============================================================
   let lastTime = performance.now();
   let acc = 0;
@@ -864,26 +1454,58 @@
   function frame(now) {
     acc += Math.min(now - lastTime, 250);
     lastTime = now;
-
     while (acc >= TICK_MS) {
       tick();
       acc -= TICK_MS;
     }
-
     render();
     requestAnimationFrame(frame);
   }
 
   function render() {
+    // Fond
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, 0, W, H);
 
-    // Grille décorative
+    // Grille
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 1;
-    for (let i = 0; i < W; i += 24) {
-      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, H); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(W, i); ctx.stroke();
+    for (let i = 0; i <= COLS; i++) {
+      ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(W, i * CELL); ctx.stroke();
+    }
+
+    // Murs
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if (grid[y] && grid[y][x] === 1) {
+          ctx.fillStyle = '#475569';
+          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+          ctx.fillStyle = '#64748b';
+          ctx.fillRect(x * CELL + 2, y * CELL + 2, CELL - 4, 3);
+          ctx.strokeStyle = '#334155';
+          ctx.strokeRect(x * CELL + 0.5, y * CELL + 0.5, CELL - 1, CELL - 1);
+        }
+      }
+    }
+
+    // Spawn hints en mode édition
+    if (editorMode) {
+      for (let i = 0; i < MAX_PLAYERS; i++) {
+        const sp = SPAWNS[i];
+        ctx.strokeStyle = COLORS[i];
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 2]);
+        ctx.strokeRect(sp.cx * CELL + 2, sp.cy * CELL + 2, CELL - 4, CELL - 4);
+        ctx.setLineDash([]);
+        ctx.fillStyle = COLORS[i];
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('J' + (i+1), sp.cx * CELL + CELL/2, sp.cy * CELL + CELL/2);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+      }
     }
 
     // Tanks
@@ -894,12 +1516,14 @@
       ctx.fillStyle = COLORS[i];
       ctx.fillRect(t.x, t.y, TANK, TANK);
 
+      // Bord blanc sur son propre tank
       if (i === mySlot) {
         ctx.strokeStyle = '#f8fafc';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(t.x - 2, t.y - 2, TANK + 4, TANK + 4);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(t.x + 1, t.y + 1, TANK - 2, TANK - 2);
       }
 
+      // Canon
       ctx.fillStyle = '#f8fafc';
       if (t.dir === 'UP')    ctx.fillRect(t.x + 10, t.y - 6, 4, 8);
       if (t.dir === 'DOWN')  ctx.fillRect(t.x + 10, t.y + 22, 4, 8);
@@ -918,6 +1542,7 @@
     // Scores
     ctx.font = 'bold 12px monospace';
     ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
     for (let i = 0; i < MAX_PLAYERS; i++) {
       const t = tanks[i];
       if (!t) continue;
@@ -929,15 +1554,17 @@
   // ============================================================
   // LANCEMENT
   // ============================================================
+  grid = makeEmptyGrid();
   resetSolo();
+  loadSavedMaps();
   initPeer();
   requestAnimationFrame(frame);
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-window.addEventListener('load',()=>{
-navigator.serviceWorker.register('./sw.js').catch(err=>console.error(err));
-});
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
+  });
 }
 </script>
 </body>

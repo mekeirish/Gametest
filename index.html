@@ -473,6 +473,39 @@
   const PEER_PREFIX = 'bcp2p-';
   const MAPS_KEY = 'battlecity-maps';
 
+  // ============================================================
+  // CONFIGURATION ICE (STUN + TURN)
+  // ------------------------------------------------------------
+  // ⚠️ IMPORTANT : Remplace TON_USERNAME_METERED et
+  //    TON_CREDENTIAL_METERED par tes identifiants Metered réels
+  //    (gratuits sur https://www.metered.ca/stun-turn)
+  // ------------------------------------------------------------
+  const ICE_SERVERS = [
+    // STUN — suffisant sur réseaux "ouverts" (même Wi-Fi, box classique)
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
+
+    // TURN UDP — passe les NAT symétriques (4G/5G, certaines box)
+    {
+      urls: 'turn:standard.relay.metered.ca:80',
+      username: 'TON_USERNAME_METERED',
+      credential: 'TON_CREDENTIAL_METERED'
+    },
+    // TURN TCP sur port 443 — indispensable sur réseaux d'entreprise/hôtel
+    // (souvent seul le port HTTPS 443 est autorisé)
+    {
+      urls: 'turn:standard.relay.metered.ca:443',
+      username: 'TON_USERNAME_METERED',
+      credential: 'TON_CREDENTIAL_METERED'
+    },
+    {
+      urls: 'turns:standard.relay.metered.ca:443?transport=tcp',
+      username: 'TON_USERNAME_METERED',
+      credential: 'TON_CREDENTIAL_METERED'
+    }
+  ];
+
   // Cell types
   const EMPTY = 0;
   const WALL = 1;
@@ -883,10 +916,10 @@
     const isHoriz = Math.abs(b.vx) >= Math.abs(b.vy);
     let row, col;
     if (isHoriz) {
-      col = b.vx > 0 ? 0 : 1;          // hits from left → left col, from right → right col
+      col = b.vx > 0 ? 0 : 1;
       row = b.y < cellCy ? 0 : 1;
     } else {
-      row = b.vy > 0 ? 0 : 1;          // hits from top → top row, from bottom → bottom row
+      row = b.vy > 0 ? 0 : 1;
       col = b.x < cellCx ? 0 : 1;
     }
     return 1 << (row * 2 + col);
@@ -1040,11 +1073,10 @@
     peer = new Peer(PEER_PREFIX + roomCode, {
       debug: 1,
       config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
+        iceServers: ICE_SERVERS,
+        // Augmente le timeout ICE pour laisser le temps au TURN de faire le relais
+        iceTransportPolicy: 'all',
+        iceCandidatePoolSize: 4
       }
     });
 
@@ -1219,17 +1251,31 @@
 
     setStatus("Connexion en cours...", "#f59e0b");
 
-    const c = peer.connect(PEER_PREFIX + code, { serialization: 'json' });
+    const c = peer.connect(PEER_PREFIX + code, {
+      serialization: 'json',
+      reliable: true,
+      // Timeout plus large pour laisser le TURN s'établir
+      connectionTimeout: 20000
+    });
     conn = c;
+
+    // Écoute du candidat local pour savoir si on est en direct ou en relais TURN
+    try {
+      c.on('iceStateChanged', state => {
+        if (state === 'checking') {
+          setStatus("Négociation WebRTC en cours (STUN/TURN)...", "#f59e0b");
+        }
+      });
+    } catch (e) {}
 
     clearTimeout(connectTimer);
     connectTimer = setTimeout(() => {
       if (role !== 'client') {
         conn = null;
         try { c.close(); } catch(e) {}
-        setStatus("Impossible de se connecter (réseau bloquant le P2P ?).", "#ef4444");
+        setStatus("Impossible de se connecter. Vérifie que le TURN est configuré (identifiants Metered).", "#ef4444");
       }
-    }, 12000);
+    }, 25000);
 
     c.on('open', () => {
       clearTimeout(connectTimer);
@@ -1409,7 +1455,7 @@
     if (gameState === 'playing') return;
 
     clearSpawnCells();
-    initWallQuads(); // resets all wall damage
+    initWallQuads();
     clearInputs();
 
     gameState = 'playing';
@@ -1438,7 +1484,7 @@
     gameState = 'lobby';
     tanks = [null, null, null, null];
     bullets = [];
-    initWallQuads(); // repair walls for next game
+    initWallQuads();
     clearInputs();
 
     const msg = { k: 'lobby' };
@@ -1503,7 +1549,6 @@
     const name = document.getElementById('map-name').value.trim();
     if (!name) return alert("Entrez un nom pour la map.");
     const maps = JSON.parse(localStorage.getItem(MAPS_KEY) || '{}');
-    // Only store the cell type grid (walls as full WALL=1, bronze=2, empty=0)
     maps[name] = grid.map(row => row.slice());
     localStorage.setItem(MAPS_KEY, JSON.stringify(maps));
     loadSavedMaps();
@@ -1635,37 +1680,28 @@
   }
 
   function drawWallQuad(x, y, w, h) {
-    // Mortar (dark border)
     ctx.fillStyle = '#4b1d09';
     ctx.fillRect(x, y, w, h);
-    // Brick face
     ctx.fillStyle = '#b45309';
     ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-    // Top highlight
     ctx.fillStyle = '#ea580c';
     ctx.fillRect(x + 1, y + 1, w - 2, 2);
-    // Bottom shadow
     ctx.fillStyle = '#7c2d12';
     ctx.fillRect(x + 1, y + h - 3, w - 2, 2);
   }
 
   function drawBronze(x, y) {
     const s = CELL;
-    // Dark border
     ctx.fillStyle = '#78350f';
     ctx.fillRect(x, y, s, s);
-    // Body
     ctx.fillStyle = '#ca8a04';
     ctx.fillRect(x + 1, y + 1, s - 2, s - 2);
-    // Top+left highlight (metal)
     ctx.fillStyle = '#fbbf24';
     ctx.fillRect(x + 1, y + 1, s - 2, 3);
     ctx.fillRect(x + 1, y + 1, 3, s - 2);
-    // Bottom+right shadow
     ctx.fillStyle = '#92400e';
     ctx.fillRect(x + 1, y + s - 4, s - 2, 3);
     ctx.fillRect(x + s - 4, y + 1, 3, s - 2);
-    // Center shine
     ctx.fillStyle = '#fde047';
     ctx.fillRect(x + 8, y + 8, s - 16, s - 16);
     ctx.fillStyle = '#eab308';
@@ -1673,11 +1709,9 @@
   }
 
   function render() {
-    // Fond
     ctx.fillStyle = '#020617';
     ctx.fillRect(0, 0, W, H);
 
-    // Grille
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 1;
     for (let i = 0; i <= COLS; i++) {
@@ -1685,7 +1719,6 @@
       ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(W, i * CELL); ctx.stroke();
     }
 
-    // Murs / bronze
     const half = CELL / 2;
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
@@ -1705,7 +1738,6 @@
       }
     }
 
-    // Spawn hints en mode édition
     if (editorMode) {
       for (let i = 0; i < MAX_PLAYERS; i++) {
         const sp = SPAWNS[i];
@@ -1724,7 +1756,6 @@
       }
     }
 
-    // Tanks
     for (let i = 0; i < MAX_PLAYERS; i++) {
       const t = tanks[i];
       if (!t) continue;
@@ -1745,7 +1776,6 @@
       if (t.dir === 'RIGHT') ctx.fillRect(t.x + 22, t.y + 10, 8, 4);
     }
 
-    // Obus
     ctx.fillStyle = '#f59e0b';
     bullets.forEach(b => {
       ctx.beginPath();
@@ -1753,7 +1783,6 @@
       ctx.fill();
     });
 
-    // Scores
     ctx.font = 'bold 12px monospace';
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';

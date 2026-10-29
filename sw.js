@@ -1,5 +1,5 @@
 const PREFIX="Gametest-";
-const CACHE="Gametest-v1793271472226";
+const CACHE="Gametest-v1793271654934";
 const ASSETS=['./','./index.html','./manifest.json','./icon.png','./icon-192.png'];
 self.addEventListener('install',e=>{
 self.skipWaiting();

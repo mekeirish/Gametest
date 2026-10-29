@@ -163,7 +163,6 @@
       padding: 2px 0;
     }
 
-    /* Players list */
     .players-card h3 {
       font-size: 11px;
       text-transform: uppercase;
@@ -217,7 +216,6 @@
       justify-content: center;
     }
 
-    /* Editor */
     .editor-panel {
       display: none;
       flex-direction: column;
@@ -275,7 +273,6 @@
       padding: 2px 0;
     }
 
-    /* Game buttons */
     .game-buttons {
       display: flex;
       gap: 8px;
@@ -288,7 +285,6 @@
       font-size: 14px;
     }
 
-    /* Canvas */
     .canvas-wrapper {
       position: relative;
       width: 100%;
@@ -312,7 +308,6 @@
       touch-action: none;
     }
 
-    /* Controls */
     .controls-panel {
       display: flex;
       justify-content: space-between;
@@ -410,6 +405,7 @@
     <div id="editor-panel" class="panel editor-panel">
       <div class="editor-row">
         <button class="tool active" data-tool="wall" onclick="setEditorTool('wall', this)">🧱 Mur</button>
+        <button class="tool" data-tool="bronze" onclick="setEditorTool('bronze', this)">🥉 Bronze</button>
         <button class="tool" data-tool="erase" onclick="setEditorTool('erase', this)">🧹 Gomme</button>
         <button class="btn btn-secondary" onclick="clearMap()">Vider</button>
       </div>
@@ -422,7 +418,11 @@
           <option value="">📂 Charger une map...</option>
         </select>
       </div>
-      <div class="editor-hint">Cliquez/glissez sur la grille pour dessiner</div>
+      <div class="editor-row">
+        <button class="btn btn-secondary" onclick="importMap()" style="flex:1">📥 Importer JSON</button>
+        <button class="btn btn-secondary" onclick="exportMap()" style="flex:1">📤 Exporter JSON</button>
+      </div>
+      <div class="editor-hint">Cliquez/glissez sur la grille pour dessiner · Mur = 4 tirs · Bronze = indestructible</div>
       <div class="editor-row">
         <button class="btn btn-primary" onclick="exitEditor()" style="flex:1">✓ Terminer l'édition</button>
       </div>
@@ -462,8 +462,8 @@
   // ============================================================
   const W = 480, H = 480;
   const CELL = 24;
-  const COLS = W / CELL;   // 20
-  const ROWS = H / CELL;   // 20
+  const COLS = W / CELL;
+  const ROWS = H / CELL;
   const TANK = 24;
   const SPEED = 3;
   const BULLET_SPEED = 6;
@@ -472,6 +472,15 @@
   const MAX_PLAYERS = 4;
   const PEER_PREFIX = 'bcp2p-';
   const MAPS_KEY = 'battlecity-maps';
+
+  // Cell types
+  const EMPTY = 0;
+  const WALL = 1;
+  const BRONZE = 2;
+
+  // Wall quadrant bits
+  const Q_TL = 1, Q_TR = 2, Q_BL = 4, Q_BR = 8;
+  const Q_ALL = Q_TL | Q_TR | Q_BL | Q_BR;
 
   const SPAWNS = [
     { cx: 2,  cy: 9,  dir: 'RIGHT' },
@@ -492,18 +501,19 @@
   // ============================================================
   let role = 'host';
   let mySlot = 0;
-  let gameState = 'lobby'; // 'lobby' | 'playing'
+  let gameState = 'lobby';
   let editorMode = false;
   let editorTool = 'wall';
 
   let grid = [];
+  let wallQuads = [];
   let tanks = [null, null, null, null];
   let bullets = [];
 
   let peer = null;
   let roomCode = "";
-  let conn = null;        // client-side connection
-  let clients = [];       // host-side: [{conn, name, slot, spectator}]
+  let conn = null;
+  let clients = [];
   let myName = 'Hôte';
   let playerNames = [null, null, null, null];
   let spectatorNames = [];
@@ -520,13 +530,24 @@
   // ============================================================
   function makeEmptyGrid() {
     const g = [];
-    for (let y = 0; y < ROWS; y++) g.push(new Array(COLS).fill(0));
+    for (let y = 0; y < ROWS; y++) g.push(new Array(COLS).fill(EMPTY));
     return g;
+  }
+
+  function initWallQuads() {
+    wallQuads = [];
+    for (let y = 0; y < ROWS; y++) {
+      const row = [];
+      for (let x = 0; x < COLS; x++) {
+        row.push(grid[y][x] === WALL ? Q_ALL : 0);
+      }
+      wallQuads.push(row);
+    }
   }
 
   function canMoveTo(slot, cx, cy) {
     if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) return false;
-    if (grid[cy][cx] === 1) return false;
+    if (grid[cy][cx] !== EMPTY) return false;
     for (let i = 0; i < MAX_PLAYERS; i++) {
       if (i === slot) continue;
       const o = tanks[i];
@@ -536,7 +557,10 @@
   }
 
   function clearSpawnCells() {
-    for (const sp of SPAWNS) grid[sp.cy][sp.cx] = 0;
+    for (const sp of SPAWNS) {
+      grid[sp.cy][sp.cx] = EMPTY;
+      if (wallQuads[sp.cy]) wallQuads[sp.cy][sp.cx] = 0;
+    }
   }
 
   // ============================================================
@@ -796,7 +820,6 @@
       }
     }
 
-    // Interpolation vers la cible
     if (t.x !== t.tx) {
       const d = t.tx - t.x;
       if (Math.abs(d) <= SPEED) t.x = t.tx;
@@ -851,6 +874,55 @@
     }
   }
 
+  // ============================================================
+  // DÉGÂTS DES MURS
+  // ============================================================
+  function pickQuadrantBit(gcx, gcy, b) {
+    const cellCx = gcx * CELL + CELL / 2;
+    const cellCy = gcy * CELL + CELL / 2;
+    const isHoriz = Math.abs(b.vx) >= Math.abs(b.vy);
+    let row, col;
+    if (isHoriz) {
+      col = b.vx > 0 ? 0 : 1;          // hits from left → left col, from right → right col
+      row = b.y < cellCy ? 0 : 1;
+    } else {
+      row = b.vy > 0 ? 0 : 1;          // hits from top → top row, from bottom → bottom row
+      col = b.x < cellCx ? 0 : 1;
+    }
+    return 1 << (row * 2 + col);
+  }
+
+  function damageWall(gcx, gcy, b) {
+    let q = wallQuads[gcy][gcx] || 0;
+    if (q === 0) return 0;
+
+    const bit = pickQuadrantBit(gcx, gcy, b);
+    const isHoriz = Math.abs(b.vx) >= Math.abs(b.vy);
+    const candidates = [bit];
+
+    if (isHoriz) {
+      const col = (bit & (Q_TL | Q_BL)) ? 0 : 1;
+      const otherRow = (bit & (Q_TL | Q_TR)) ? 1 : 0;
+      candidates.push(1 << (otherRow * 2 + col));
+    } else {
+      const row = (bit & (Q_TL | Q_TR)) ? 0 : 1;
+      const otherCol = (bit & (Q_TL | Q_BL)) ? 1 : 0;
+      candidates.push(1 << (row * 2 + otherCol));
+    }
+    candidates.push(Q_TL, Q_TR, Q_BL, Q_BR);
+
+    for (const cb of candidates) {
+      if (q & cb) { q &= ~cb; break; }
+    }
+
+    wallQuads[gcy][gcx] = q;
+    if (q === 0) grid[gcy][gcx] = EMPTY;
+    return q;
+  }
+
+  // ============================================================
+  // BULLES (hôte = autorité)
+  // ============================================================
   function hostBullets() {
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
@@ -864,9 +936,18 @@
 
       const gcx = Math.floor(b.x / CELL);
       const gcy = Math.floor(b.y / CELL);
-      if (gcx >= 0 && gcx < COLS && gcy >= 0 && gcy < ROWS && grid[gcy][gcx] === 1) {
-        bullets.splice(i, 1);
-        continue;
+      if (gcx >= 0 && gcx < COLS && gcy >= 0 && gcy < ROWS) {
+        const v = grid[gcy][gcx];
+        if (v === WALL) {
+          const newQ = damageWall(gcx, gcy, b);
+          broadcastWallHit(gcx, gcy, newQ);
+          bullets.splice(i, 1);
+          continue;
+        }
+        if (v === BRONZE) {
+          bullets.splice(i, 1);
+          continue;
+        }
       }
 
       let hit = false;
@@ -896,6 +977,13 @@
       b.x += b.vx;
       b.y += b.vy;
       if (b.x < 0 || b.x > W || b.y < 0 || b.y > H) bullets.splice(i, 1);
+    }
+  }
+
+  function broadcastWallHit(gcx, gcy, quads) {
+    const msg = { k: 'wallhit', x: gcx, y: gcy, q: quads };
+    for (const c of clients) {
+      if (c.conn.open) c.conn.send(msg);
     }
   }
 
@@ -1028,9 +1116,7 @@
 
       if (d.k === 'join' && !clientObj) {
         let slot = -1;
-        if (gameState === 'lobby') {
-          slot = findFreeSlot();
-        }
+        if (gameState === 'lobby') slot = findFreeSlot();
         const isSpec = slot < 0;
 
         clientObj = {
@@ -1050,7 +1136,8 @@
           playerNames: playerNames,
           spectatorNames: spectatorNames,
           gameState: gameState,
-          grid: gameState === 'playing' ? grid : null
+          grid: grid,
+          wallQuads: gameState === 'playing' ? wallQuads : null
         });
 
         updateUI();
@@ -1182,6 +1269,8 @@
       playerNames = d.playerNames || [null,null,null,null];
       spectatorNames = d.spectatorNames || [];
       if (d.grid) grid = d.grid;
+      if (d.wallQuads) wallQuads = d.wallQuads;
+      else initWallQuads();
 
       rtt = null;
       lastSentPos = "";
@@ -1217,6 +1306,8 @@
 
     if (d.k === 'start') {
       grid = d.grid;
+      if (d.wallQuads) wallQuads = d.wallQuads;
+      else initWallQuads();
       gameState = 'playing';
       tanks = [null, null, null, null];
       bullets = [];
@@ -1226,9 +1317,18 @@
 
     if (d.k === 'lobby') {
       gameState = 'lobby';
+      initWallQuads();
       tanks = [null, null, null, null];
       bullets = [];
       updateUI();
+      return;
+    }
+
+    if (d.k === 'wallhit') {
+      if (wallQuads[d.y]) {
+        wallQuads[d.y][d.x] = d.q;
+        if (d.q === 0) grid[d.y][d.x] = EMPTY;
+      }
       return;
     }
 
@@ -1309,6 +1409,7 @@
     if (gameState === 'playing') return;
 
     clearSpawnCells();
+    initWallQuads(); // resets all wall damage
     clearInputs();
 
     gameState = 'playing';
@@ -1321,7 +1422,7 @@
       }
     }
 
-    const msg = { k: 'start', grid: grid };
+    const msg = { k: 'start', grid: grid, wallQuads: wallQuads };
     for (const c of clients) {
       if (c.conn.open) c.conn.send(msg);
     }
@@ -1337,6 +1438,7 @@
     gameState = 'lobby';
     tanks = [null, null, null, null];
     bullets = [];
+    initWallQuads(); // repair walls for next game
     clearInputs();
 
     const msg = { k: 'lobby' };
@@ -1380,8 +1482,9 @@
   }
 
   function clearMap() {
-    if (!confirm("Effacer tous les murs ?")) return;
+    if (!confirm("Effacer toute la map ?")) return;
     grid = makeEmptyGrid();
+    initWallQuads();
   }
 
   function loadSavedMaps() {
@@ -1400,7 +1503,8 @@
     const name = document.getElementById('map-name').value.trim();
     if (!name) return alert("Entrez un nom pour la map.");
     const maps = JSON.parse(localStorage.getItem(MAPS_KEY) || '{}');
-    maps[name] = grid;
+    // Only store the cell type grid (walls as full WALL=1, bronze=2, empty=0)
+    maps[name] = grid.map(row => row.slice());
     localStorage.setItem(MAPS_KEY, JSON.stringify(maps));
     loadSavedMaps();
     document.getElementById('saved-maps').value = name;
@@ -1412,11 +1516,71 @@
     const maps = JSON.parse(localStorage.getItem(MAPS_KEY) || '{}');
     if (maps[name]) {
       grid = JSON.parse(JSON.stringify(maps[name]));
+      initWallQuads();
       setStatus('Map "' + name + '" chargée.', "#10b981");
     }
   }
 
-  // Peinture sur la grille
+  // ---------- IMPORT / EXPORT ----------
+  function exportMap() {
+    const name = (document.getElementById('map-name').value.trim() || 'map');
+    const data = {
+      name: name,
+      version: 1,
+      cols: COLS,
+      rows: ROWS,
+      grid: grid.map(row => row.slice())
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name.replace(/[^a-z0-9_-]/gi, '_') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus('Map exportée : ' + a.download, "#10b981");
+  }
+
+  function importMap() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (!data || !Array.isArray(data.grid)) throw new Error('Champ "grid" manquant');
+
+          const newGrid = [];
+          for (let y = 0; y < ROWS; y++) {
+            const row = [];
+            for (let x = 0; x < COLS; x++) {
+              const v = (data.grid[y] && data.grid[y][x]) || 0;
+              row.push([EMPTY, WALL, BRONZE].includes(v) ? v : EMPTY);
+            }
+            newGrid.push(row);
+          }
+          grid = newGrid;
+          initWallQuads();
+          if (typeof data.name === 'string') {
+            document.getElementById('map-name').value = data.name.slice(0, 24);
+          }
+          setStatus('Map "' + (data.name || 'importée') + '" chargée.', "#10b981");
+        } catch (err) {
+          alert('Erreur lors de l\'import : ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }
+
+  // ---------- PEINTURE ----------
   let painting = false;
   function paintAt(e) {
     if (!editorMode) return;
@@ -1428,8 +1592,16 @@
     const cx = Math.floor(px / CELL);
     const cy = Math.floor(py / CELL);
     if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) return;
-    const v = (editorTool === 'wall') ? 1 : 0;
-    if (grid[cy][cx] !== v) grid[cy][cx] = v;
+
+    let v;
+    if (editorTool === 'wall') v = WALL;
+    else if (editorTool === 'bronze') v = BRONZE;
+    else v = EMPTY;
+
+    if (grid[cy][cx] !== v) {
+      grid[cy][cx] = v;
+      wallQuads[cy][cx] = (v === WALL) ? Q_ALL : 0;
+    }
   }
 
   canvas.addEventListener('pointerdown', e => {
@@ -1462,6 +1634,44 @@
     requestAnimationFrame(frame);
   }
 
+  function drawWallQuad(x, y, w, h) {
+    // Mortar (dark border)
+    ctx.fillStyle = '#4b1d09';
+    ctx.fillRect(x, y, w, h);
+    // Brick face
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+    // Top highlight
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(x + 1, y + 1, w - 2, 2);
+    // Bottom shadow
+    ctx.fillStyle = '#7c2d12';
+    ctx.fillRect(x + 1, y + h - 3, w - 2, 2);
+  }
+
+  function drawBronze(x, y) {
+    const s = CELL;
+    // Dark border
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(x, y, s, s);
+    // Body
+    ctx.fillStyle = '#ca8a04';
+    ctx.fillRect(x + 1, y + 1, s - 2, s - 2);
+    // Top+left highlight (metal)
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(x + 1, y + 1, s - 2, 3);
+    ctx.fillRect(x + 1, y + 1, 3, s - 2);
+    // Bottom+right shadow
+    ctx.fillStyle = '#92400e';
+    ctx.fillRect(x + 1, y + s - 4, s - 2, 3);
+    ctx.fillRect(x + s - 4, y + 1, 3, s - 2);
+    // Center shine
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(x + 8, y + 8, s - 16, s - 16);
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(x + 9, y + 9, s - 18, s - 18);
+  }
+
   function render() {
     // Fond
     ctx.fillStyle = '#020617';
@@ -1475,16 +1685,22 @@
       ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(W, i * CELL); ctx.stroke();
     }
 
-    // Murs
+    // Murs / bronze
+    const half = CELL / 2;
     for (let y = 0; y < ROWS; y++) {
       for (let x = 0; x < COLS; x++) {
-        if (grid[y] && grid[y][x] === 1) {
-          ctx.fillStyle = '#475569';
-          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
-          ctx.fillStyle = '#64748b';
-          ctx.fillRect(x * CELL + 2, y * CELL + 2, CELL - 4, 3);
-          ctx.strokeStyle = '#334155';
-          ctx.strokeRect(x * CELL + 0.5, y * CELL + 0.5, CELL - 1, CELL - 1);
+        const v = grid[y][x];
+        if (v === EMPTY) continue;
+        const bx = x * CELL, by = y * CELL;
+
+        if (v === BRONZE) {
+          drawBronze(bx, by);
+        } else if (v === WALL) {
+          const q = (wallQuads[y] && wallQuads[y][x]) || 0;
+          if (q & Q_TL) drawWallQuad(bx, by, half, half);
+          if (q & Q_TR) drawWallQuad(bx + half, by, half, half);
+          if (q & Q_BL) drawWallQuad(bx, by + half, half, half);
+          if (q & Q_BR) drawWallQuad(bx + half, by + half, half, half);
         }
       }
     }
@@ -1516,14 +1732,12 @@
       ctx.fillStyle = COLORS[i];
       ctx.fillRect(t.x, t.y, TANK, TANK);
 
-      // Bord blanc sur son propre tank
       if (i === mySlot) {
         ctx.strokeStyle = '#f8fafc';
         ctx.lineWidth = 2;
         ctx.strokeRect(t.x + 1, t.y + 1, TANK - 2, TANK - 2);
       }
 
-      // Canon
       ctx.fillStyle = '#f8fafc';
       if (t.dir === 'UP')    ctx.fillRect(t.x + 10, t.y - 6, 4, 8);
       if (t.dir === 'DOWN')  ctx.fillRect(t.x + 10, t.y + 22, 4, 8);
@@ -1555,6 +1769,7 @@
   // LANCEMENT
   // ============================================================
   grid = makeEmptyGrid();
+  initWallQuads();
   resetSolo();
   loadSavedMaps();
   initPeer();
